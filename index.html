@@ -25,84 +25,49 @@
     canvas.height = window.innerHeight;
 
     class Ball {
-  constructor(x, y, radius) {
-    this.x = x;
-    this.y = y;
-    this.radius = radius;
-    this.dx = 4;
-    this.dy = -4;
-    this.shapes = ['circle', 'square', 'rectangle', 'triangle', 'dot'];
-    this.currentShape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
-  }
+      constructor(x, y, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.dx = 4;
+        this.dy = -4;
+      }
 
-  draw() {
-    ctx.fillStyle = '#0ff';
-    ctx.beginPath();
-
-    switch (this.currentShape) {
-      case 'circle':
+      draw() {
+        ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
         ctx.fill();
-        break;
-
-      case 'square':
-        ctx.rect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
-        ctx.fill();
-        break;
-
-      case 'rectangle':
-        ctx.rect(this.x - this.radius * 1.5, this.y - this.radius, this.radius * 3, this.radius * 2);
-        ctx.fill();
-        break;
-
-      case 'triangle':
-        ctx.moveTo(this.x, this.y - this.radius);
-        ctx.lineTo(this.x - this.radius, this.y + this.radius);
-        ctx.lineTo(this.x + this.radius, this.y + this.radius);
         ctx.closePath();
-        ctx.fill();
-        break;
+      }
 
-      case 'dot':
-        ctx.arc(this.x, this.y, this.radius / 4, 0, Math.PI * 2);
-        ctx.fill();
-        break;
+      update() {
+        this.x += this.dx;
+        this.y += this.dy;
+
+        if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+          this.dx = -this.dx;
+        }
+
+        if (this.y - this.radius < 0) {
+          this.dy = -this.dy;
+        }
+
+        if (this.y + this.radius > canvas.height) {
+          this.reset();
+        }
+
+        this.draw();
+      }
+
+      reset() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height - 30;
+        this.dx = 4;
+        this.dy = -4;
+      }
     }
-  }
-
-  update() {
-    this.x += this.dx;
-    this.y += this.dy;
-
-    if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
-      this.dx = -this.dx;
-    }
-
-    if (this.y - this.radius < 0) {
-      this.dy = -this.dy;
-    }
-
-    if (this.y + this.radius > canvas.height) {
-      this.reset();
-    }
-
-    // Change shape randomly every frame (optional: you can do it less frequently if you want)
-    if (Math.random() < 0.05) {  // 5% chance per frame to change shape
-      this.currentShape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
-    }
-
-    this.draw();
-  }
-
-  reset() {
-    this.x = canvas.width / 2;
-    this.y = canvas.height - 30;
-    this.dx = 4;
-    this.dy = -4;
-    this.currentShape = this.shapes[Math.floor(Math.random() * this.shapes.length)];
-  }
-}
-
 
     class Paddle {
   constructor(width, height) {
