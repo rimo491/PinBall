@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pinball Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      background: #222;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="pinball"></canvas>
+  <script>
+    const canvas = document.getElementById('pinball');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    class Ball {
+      constructor(x, y, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.dx = 4;
+        this.dy = -4;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      update() {
+        this.x += this.dx;
+        this.y += this.dy;
+
+        if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+          this.dx = -this.dx;
+        }
+
+        if (this.y - this.radius < 0) {
+          this.dy = -this.dy;
+        }
+
+        if (this.y + this.radius > canvas.height) {
+          this.reset();
+        }
+
+        this.draw();
+      }
+
+      reset() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height - 30;
+        this.dx = 4;
+        this.dy = -4;
+      }
+    }
+
+    class Paddle {
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.x = (canvas.width - this.width) / 2;
+        this.y = canvas.height - this.height - 10;
+        this.speed = 7;
+        this.rightPressed = false;
+        this.leftPressed = false;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.rect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#0f0';
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      update() {
+        if (this.rightPressed && this.x < canvas.width - this.width) {
+          this.x += this.speed;
+        } else if (this.leftPressed && this.x > 0) {
+          this.x -= this.speed;
+        }
+
+        this.draw();
+      }
+    }
+
+    const ball = new Ball(canvas.width / 2, canvas.height - 30, 10, '#0ff');
+    const paddle = new Paddle(100, 10);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Right' || e.key === 'ArrowRight') {
+        paddle.rightPressed = true;
+      } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+        paddle.leftPressed = true;
+      }
+    });
+
+    document.addEventListener('keyup', e => {
+      if (e.key === 'Right' || e.key === 'ArrowRight') {
+        paddle.rightPressed = false;
+      } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+        paddle.leftPressed = false;
+      }
+    });
+
+    function detectCollision() {
+      if (
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.width &&
+        ball.y + ball.radius > paddle.y &&
+        ball.y + ball.radius < paddle.y + paddle.height
+      ) {
+        ball.dy = -ball.dy;
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ball.update();
+      paddle.update();
+      detectCollision();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
