@@ -118,6 +118,29 @@
       }
     });
 
+let isDragging = false;
+
+canvas.addEventListener('touchstart', function(e) {
+  const touchX = e.touches[0].clientX;
+  if (touchX > paddle.x && touchX < paddle.x + paddle.width) {
+    isDragging = true;
+  }
+});
+
+canvas.addEventListener('touchmove', function(e) {
+  if (isDragging) {
+    const touchX = e.touches[0].clientX;
+    paddle.x = touchX - paddle.width / 2;
+    // Prevent page from scrolling while dragging
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', function() {
+  isDragging = false;
+});
+
+
     function detectCollision() {
       if (
         ball.x > paddle.x &&
