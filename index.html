@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pinball Game</title>
   <style>
     body {
@@ -14,30 +14,45 @@
       display: block;
       background: #222;
     }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 24px;
+      font-family: Arial, sans-serif;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
+  <div id="score">Score: 0</div>
   <canvas id="pinball"></canvas>
   <script>
     const canvas = document.getElementById('pinball');
     const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    let score = 0;
+
     class Ball {
-      constructor(x, y, radius, color) {
+      constructor(x, y, radius) {
         this.x = x;
         this.y = y;
         this.radius = radius;
-        this.color = color;
         this.dx = 4;
         this.dy = -4;
       }
 
       draw() {
+        const gradient = ctx.createRadialGradient(this.x, this.y, this.radius / 2, this.x, this.y, this.radius);
+        gradient.addColorStop(0, '#0ff');
+        gradient.addColorStop(1, '#00f');
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = gradient;
         ctx.fill();
         ctx.closePath();
       }
@@ -66,45 +81,45 @@
         this.y = canvas.height - 30;
         this.dx = 4;
         this.dy = -4;
+        score = 0;
+        scoreDisplay.textContent = `Score: ${score}`;
       }
     }
 
     class Paddle {
-  constructor(width, height) {
-    this.width = width;
-    this.height = height;
-    this.x = (canvas.width - this.width) / 2;
-    this.y = canvas.height - this.height - 10;
-    this.speed = 7;
-    this.rightPressed = false;
-    this.leftPressed = false;
-  }
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.x = (canvas.width - this.width) / 2;
+        this.y = canvas.height - this.height - 10;
+        this.speed = 7;
+        this.rightPressed = false;
+        this.leftPressed = false;
+      }
 
-  draw() {
-    const colorRatio = this.width / canvas.width;
-    const red = Math.floor(255 * (1 - colorRatio));
-    const green = Math.floor(255 * colorRatio);
+      draw() {
+        const colorRatio = this.width / canvas.width;
+        const red = Math.floor(255 * (1 - colorRatio));
+        const green = Math.floor(255 * colorRatio);
+        ctx.beginPath();
+        ctx.rect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = `rgb(${red},${green},0)`;
+        ctx.fill();
+        ctx.closePath();
+      }
 
-    ctx.beginPath();
-    ctx.rect(this.x, this.y, this.width, this.height);
-    ctx.fillStyle = `rgb(${red},${green},0)`;
-    ctx.fill();
-    ctx.closePath();
-  }
+      update() {
+        if (this.rightPressed && this.x < canvas.width - this.width) {
+          this.x += this.speed;
+        } else if (this.leftPressed && this.x > 0) {
+          this.x -= this.speed;
+        }
 
-  update() {
-    if (this.rightPressed && this.x < canvas.width - this.width) {
-      this.x += this.speed;
-    } else if (this.leftPressed && this.x > 0) {
-      this.x -= this.speed;
+        this.draw();
+      }
     }
 
-    this.draw();
-  }
-}
-
-
-    const ball = new Ball(canvas.width / 2, canvas.height - 30, 10, '#0ff');
+    const ball = new Ball(canvas.width / 2, canvas.height - 30, 10);
     const paddle = new Paddle(100, 10);
 
     document.addEventListener('keydown', e => {
@@ -122,61 +137,29 @@
         paddle.leftPressed = false;
       }
     });
-// Mobile drag support
-canvas.addEventListener('touchmove', function (e) {
-  const touch = e.touches[0];
-  const rect = canvas.getBoundingClientRect();
-  const x = touch.clientX - rect.left;
 
-  // Center paddle on touch X
-  paddle.x = x - paddle.width / 2;
-
-  // Clamp within canvas bounds
-  if (paddle.x < 0) paddle.x = 0;
-  if (paddle.x + paddle.width > canvas.width) {
-    paddle.x = canvas.width - paddle.width;
-  }
-
-  e.preventDefault(); // Prevents scrolling
-}, { passive: false });
-
-let isDragging = false;
-
-canvas.addEventListener('touchstart', function(e) {
-  const touchX = e.touches[0].clientX;
-  if (touchX > paddle.x && touchX < paddle.x + paddle.width) {
-    isDragging = true;
-  }
-});
-
-canvas.addEventListener('touchmove', function(e) {
-  if (isDragging) {
-    const touchX = e.touches[0].clientX;
-    paddle.x = touchX - paddle.width / 2;
-    // Prevent page from scrolling while dragging
-    e.preventDefault();
-  }
-}, { passive: false });
-
-canvas.addEventListener('touchend', function() {
-  isDragging = false;
-});
-
+    // Touch controls for mobile
+    canvas.addEventListener('touchmove', (e) => {
+      const touchX = e.touches[0].clientX;
+      paddle.x = touchX - paddle.width / 2;
+      if (paddle.x < 0) paddle.x = 0;
+      if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+      e.preventDefault();
+    }, { passive: false });
 
     function detectCollision() {
-  if (
-    ball.x > paddle.x &&
-    ball.x < paddle.x + paddle.width &&
-    ball.y + ball.radius > paddle.y &&
-    ball.y + ball.radius < paddle.y + paddle.height
-  ) {
-    ball.dy = -ball.dy;
-
-    // <-- Add these two lines here:
-    score++;
-    scoreDisplay.textContent = `Score: ${score}`;
-  }
-}
+      if (
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.width &&
+        ball.y + ball.radius >= paddle.y &&
+        ball.y + ball.radius <= paddle.y + paddle.height + ball.radius
+      ) {
+        ball.dy = -ball.dy;
+        ball.y = paddle.y - ball.radius; // prevent sticking inside paddle
+        score++;
+        scoreDisplay.textContent = `Score: ${score}`;
+      }
+    }
 
     function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -187,6 +170,14 @@ canvas.addEventListener('touchend', function() {
     }
 
     animate();
+
+    // Resize canvas on window resize
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      paddle.y = canvas.height - paddle.height - 10;
+      ball.reset();
+    });
   </script>
 </body>
 </html>
