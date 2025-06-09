@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pinball Game</title>
   <style>
     body {
@@ -23,15 +23,26 @@
       font-family: Arial, sans-serif;
       z-index: 1;
     }
+    #enableGyro {
+      position: absolute;
+      top: 50px;
+      left: 10px;
+      z-index: 2;
+      font-size: 16px;
+      padding: 8px 12px;
+    }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
+  <button id="enableGyro">Enable Gyroscope</button>
   <canvas id="pinball"></canvas>
+
   <script>
     const canvas = document.getElementById('pinball');
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('score');
+    const enableGyroBtn = document.getElementById('enableGyro');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -138,12 +149,16 @@
       }
     });
 
-    // Touch controls for mobile
     canvas.addEventListener('touchmove', (e) => {
-      const touchX = e.touches[0].clientX;
-      paddle.x = touchX - paddle.width / 2;
-      if (paddle.x < 0) paddle.x = 0;
-      if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        paddle.x = touch.clientX - paddle.width / 2;
+
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.width > canvas.width) {
+          paddle.x = canvas.width - paddle.width;
+        }
+      }
       e.preventDefault();
     }, { passive: false });
 
@@ -151,11 +166,10 @@
       if (
         ball.x > paddle.x &&
         ball.x < paddle.x + paddle.width &&
-        ball.y + ball.radius >= paddle.y &&
-        ball.y + ball.radius <= paddle.y + paddle.height + ball.radius
+        ball.y + ball.radius > paddle.y &&
+        ball.y + ball.radius < paddle.y + paddle.height
       ) {
-        ball.dy = -ball.dy;
-        ball.y = paddle.y - ball.radius; // prevent sticking inside paddle
+        ball.dy = -Math.abs(ball.dy); // bounce upward only
         score++;
         scoreDisplay.textContent = `Score: ${score}`;
       }
@@ -169,15 +183,40 @@
       requestAnimationFrame(animate);
     }
 
-    animate();
+    // Gyroscope support
+    function handleTilt(event) {
+      const tilt = event.gamma; // -90 (left) to +90 (right)
+      if (tilt !== null) {
+        paddle.x += tilt * 0.5;
 
-    // Resize canvas on window resize
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      paddle.y = canvas.height - paddle.height - 10;
-      ball.reset();
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.width > canvas.width) {
+          paddle.x = canvas.width - paddle.width;
+        }
+      }
+    }
+
+    enableGyroBtn.addEventListener('click', () => {
+      if (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'
+      ) {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('deviceorientation', handleTilt);
+              enableGyroBtn.style.display = 'none';
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Android or browsers that don't require permission
+        window.addEventListener('deviceorientation', handleTilt);
+        enableGyroBtn.style.display = 'none';
+      }
     });
+
+    animate();
   </script>
 </body>
 </html>
