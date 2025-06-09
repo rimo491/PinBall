@@ -58,6 +58,46 @@
       background: #0f0;
       color: #000;
     }
+    #authScreen {
+      display:none;
+      position:absolute;
+      top:10%;
+      left:50%;
+      transform:translateX(-50%);
+      background:#111;
+      padding:20px;
+      border-radius:8px;
+      z-index:10;
+      color:#fff;
+    }
+    #authScreen input {
+      width: 200px;
+      margin-bottom: 10px;
+      padding: 8px;
+    }
+    #authScreen button {
+      margin-right: 10px;
+    }
+    #logoutBtn {
+      position: absolute;
+      top: 10px;
+      right: 150px;
+      z-index: 10;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #f44;
+      border: none;
+      border-radius: 6px;
+      color: white;
+    }
+    #globalHigh {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      font-size: 18px;
+      z-index: 2;
+    }
   </style>
 </head>
 <body>
@@ -66,9 +106,23 @@
     <button id="startButton">Start Game</button>
   </div>
 
+  <div id="authScreen">
+    <h2>Login or Sign Up</h2>
+    <input type="email" id="emailInput" placeholder="Email" />
+    <br />
+    <input type="password" id="passwordInput" placeholder="Password" />
+    <br />
+    <button id="loginBtn">Login</button>
+    <button id="signupBtn">Sign Up</button>
+    <div id="authMessage" style="margin-top: 10px; color: #f66;"></div>
+  </div>
+
   <div id="score">Score: 0</div>
   <div id="highScore">High Score: 0</div>
+  <div id="globalHigh">Global High Score: 0</div>
   <button id="enableGyro">Enable Gyroscope</button>
+  <button id="logoutBtn" style="display:none;">Logout</button>
+
   <canvas id="pinball"></canvas>
 
   <audio id="bgMusic" loop>
@@ -79,24 +133,123 @@
     <source src="audios/tapSound.mp3" type="audio/mp3" />
   </audio>
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
   <script>
-    const canvas = document.getElementById('pinball');
-    const ctx = canvas.getContext('2d');
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxAL1KBB3JL44jHmSAXgFpBR-ijQL6dcs",
+      authDomain: "pinbalworld.firebaseapp.com",
+      projectId: "pinbalworld",
+      storageBucket: "pinbalworld.appspot.com",
+      messagingSenderId: "615002994187",
+      appId: "1:615002994187:web:499e2bf987975a170a790e",
+      measurementId: "G-VGNKR4KCHG"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+
+    const auth = firebase.auth();
+    const database = firebase.database();
+
+    const authScreen = document.getElementById('authScreen');
+    const startScreen = document.getElementById('startScreen');
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const authMessage = document.getElementById('authMessage');
+    const logoutBtn = document.getElementById('logoutBtn');
     const scoreDisplay = document.getElementById('score');
     const highScoreDisplay = document.getElementById('highScore');
-    const enableGyroBtn = document.getElementById('enableGyro');
-    const startScreen = document.getElementById('startScreen');
+    const globalHighDisplay = document.getElementById('globalHigh');
     const startButton = document.getElementById('startButton');
     const bgMusic = document.getElementById('bgMusic');
     const tapSound = document.getElementById('tapSound');
+    const enableGyroBtn = document.getElementById('enableGyro');
+    const canvas = document.getElementById('pinball');
+    const ctx = canvas.getContext('2d');
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
     let score = 0;
-    let highScore = localStorage.getItem('pinballHighScore') || 0;
-    highScoreDisplay.textContent = `High Score: ${highScore}`;
+    let highScore = 0;
     let gameStarted = false;
+
+    loginBtn.addEventListener('click', () => {
+      const email = document.getElementById('emailInput').value;
+      const password = document.getElementById('passwordInput').value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          authMessage.textContent = '';
+          authScreen.style.display = 'none';
+          startScreen.style.display = 'flex';
+          logoutBtn.style.display = 'block';
+          fetchScores();
+        })
+        .catch((error) => {
+          authMessage.textContent = error.message;
+        });
+    });
+
+    signupBtn.addEventListener('click', () => {
+      const email = document.getElementById('emailInput').value;
+      const password = document.getElementById('passwordInput').value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          authMessage.textContent = '';
+          authScreen.style.display = 'none';
+          startScreen.style.display = 'flex';
+          logoutBtn.style.display = 'block';
+          fetchScores();
+        })
+        .catch((error) => {
+          authMessage.textContent = error.message;
+        });
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      auth.signOut();
+    });
+
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        authScreen.style.display = 'none';
+        startScreen.style.display = 'flex';
+        logoutBtn.style.display = 'block';
+        fetchScores();
+      } else {
+        authScreen.style.display = 'block';
+        startScreen.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        scoreDisplay.textContent = `Score: 0`;
+        highScoreDisplay.textContent = `High Score: 0`;
+        globalHighDisplay.textContent = `Global High Score: 0`;
+        gameStarted = false;
+      }
+    });
+
+    function fetchScores() {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const userId = user.uid;
+
+      // Fetch user high score
+      database.ref('scores/' + userId).once('value').then(snapshot => {
+        highScore = snapshot.val() || 0;
+        highScoreDisplay.textContent = `High Score: ${highScore}`;
+      });
+
+      // Fetch global high score
+      database.ref('highscore').once('value').then(snapshot => {
+        const globalScore = snapshot.val() || 0;
+        globalHighDisplay.textContent = `Global High Score: ${globalScore}`;
+      });
+    }
 
     class Ball {
       constructor(x, y, radius) {
@@ -142,9 +295,25 @@
       reset() {
         if (score > highScore) {
           highScore = score;
-          localStorage.setItem('pinballHighScore', highScore);
           highScoreDisplay.textContent = `High Score: ${highScore}`;
+
+          const user = auth.currentUser;
+          if (user) {
+            const userId = user.uid;
+            const userRef = database.ref('scores/' + userId);
+            userRef.set(score);
+          }
         }
+
+        // Update global high score if beaten
+        database.ref('highscore').once('value').then(snapshot => {
+          const globalHigh = snapshot.val() || 0;
+          if (score > globalHigh) {
+            database.ref('highscore').set(score);
+            globalHighDisplay.textContent = `Global High Score: ${score}`;
+          }
+        });
+
         this.x = canvas.width / 2;
         this.y = canvas.height - 30;
         this.dx = 4;
@@ -242,23 +411,19 @@
     }, { passive: false });
 
     startButton.addEventListener('click', () => {
-  if (gameStarted) return;
-  gameStarted = true;
-  startScreen.style.display = 'none';
-  score = 0;
-  scoreDisplay.textContent = `Score: ${score}`;
-  paddle.x = (canvas.width - paddle.width) / 2;
-
-  // Manually reset the ball without ending the game
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height - 30;
-  ball.dx = 4;
-  ball.dy = -4;
-
-  bgMusic.play();
-  animate();
-});
-
+      if (gameStarted) return;
+      gameStarted = true;
+      startScreen.style.display = 'none';
+      score = 0;
+      scoreDisplay.textContent = `Score: ${score}`;
+      paddle.x = (canvas.width - paddle.width) / 2;
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height - 30;
+      ball.dx = 4;
+      ball.dy = -4;
+      bgMusic.play();
+      animate();
+    });
 
     function handleTilt(event) {
       if (!gameStarted) return;
