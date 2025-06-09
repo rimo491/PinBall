@@ -117,6 +117,23 @@
         paddle.leftPressed = false;
       }
     });
+// Mobile drag support
+canvas.addEventListener('touchmove', function (e) {
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const x = touch.clientX - rect.left;
+
+  // Center paddle on touch X
+  paddle.x = x - paddle.width / 2;
+
+  // Clamp within canvas bounds
+  if (paddle.x < 0) paddle.x = 0;
+  if (paddle.x + paddle.width > canvas.width) {
+    paddle.x = canvas.width - paddle.width;
+  }
+
+  e.preventDefault(); // Prevents scrolling
+}, { passive: false });
 
 let isDragging = false;
 
