@@ -1,30 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pinball Game</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
-      background: #000;
+      background: #1a0033;
+      /* deep violet */
       font-family: Arial, sans-serif;
       color: #fff;
       user-select: none;
     }
+
     canvas {
       display: block;
-      background: #222;
+      background: radial-gradient(circle at center, #2a0050, #0d001a);
     }
-    #score, #highScore {
+
+    #score,
+    #highScore {
       position: absolute;
       top: 10px;
       font-size: 24px;
       z-index: 2;
     }
-    #score { left: 10px; }
-    #highScore { right: 10px; }
+
+    #score {
+      left: 10px;
+    }
+
+    #highScore {
+      right: 10px;
+    }
+
     #enableGyro {
       position: absolute;
       top: 50px;
@@ -34,21 +46,26 @@
       padding: 8px 12px;
       cursor: pointer;
     }
+
     #startScreen {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.9);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 5;
     }
+
     #startScreen h1 {
       font-size: 48px;
       margin-bottom: 20px;
     }
+
     #startButton {
       padding: 15px 40px;
       font-size: 24px;
@@ -60,6 +77,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="startScreen">
     <h1>Welcome to Pinball World</h1>
@@ -98,6 +116,29 @@
     highScoreDisplay.textContent = `High Score: ${highScore}`;
     let gameStarted = false;
 
+    class PopEffect {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 5;
+        this.alpha = 1;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(204,0,255,${this.alpha})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.closePath();
+
+        this.radius += 2;
+        this.alpha -= 0.05;
+      }
+    }
+
+    const pops = [];
+
     class Ball {
       constructor(x, y, radius) {
         this.x = x;
@@ -108,14 +149,26 @@
       }
 
       draw() {
-        const gradient = ctx.createRadialGradient(this.x, this.y, this.radius / 2, this.x, this.y, this.radius);
-        gradient.addColorStop(0, '#0ff');
-        gradient.addColorStop(1, '#00f');
+        const gradient = ctx.createRadialGradient(
+          this.x, this.y, this.radius * 0.2,
+          this.x, this.y, this.radius
+        );
+
+        gradient.addColorStop(0, "#ff66ff");
+        gradient.addColorStop(0.5, "#cc00ff");
+        gradient.addColorStop(1, "#6600cc");
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
         ctx.fillStyle = gradient;
+        ctx.shadowColor = "#cc00ff";
+        ctx.shadowBlur = 20;
+
         ctx.fill();
         ctx.closePath();
+
+        ctx.shadowBlur = 0;
       }
 
       update() {
@@ -125,11 +178,13 @@
         if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
           this.dx = -this.dx;
           playTap();
+          pops.push(new PopEffect(this.x, this.y));
         }
 
         if (this.y - this.radius < 0) {
           this.dy = -this.dy;
           playTap();
+          pops.push(new PopEffect(this.x, this.y));
         }
 
         if (this.y + this.radius > canvas.height) {
@@ -202,6 +257,9 @@
         ball.y + ball.radius < paddle.y + paddle.height
       ) {
         ball.dy = -Math.abs(ball.dy);
+
+        pops.push(new PopEffect(ball.x, ball.y));
+
         score++;
         scoreDisplay.textContent = `Score: ${score}`;
       }
@@ -214,10 +272,21 @@
 
     function animate() {
       if (!gameStarted) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       ball.update();
       paddle.update();
       detectCollision();
+
+      pops.forEach((pop, index) => {
+        pop.draw();
+
+        if (pop.alpha <= 0) {
+          pops.splice(index, 1);
+        }
+      });
+
       requestAnimationFrame(animate);
     }
 
@@ -242,22 +311,22 @@
     }, { passive: false });
 
     startButton.addEventListener('click', () => {
-  if (gameStarted) return;
-  gameStarted = true;
-  startScreen.style.display = 'none';
-  score = 0;
-  scoreDisplay.textContent = `Score: ${score}`;
-  paddle.x = (canvas.width - paddle.width) / 2;
+      if (gameStarted) return;
+      gameStarted = true;
+      startScreen.style.display = 'none';
+      score = 0;
+      scoreDisplay.textContent = `Score: ${score}`;
+      paddle.x = (canvas.width - paddle.width) / 2;
 
-  // Manually reset the ball without ending the game
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height - 30;
-  ball.dx = 4;
-  ball.dy = -4;
+      // Manually reset the ball without ending the game
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height - 30;
+      ball.dx = 4;
+      ball.dy = -4;
 
-  bgMusic.play();
-  animate();
-});
+      bgMusic.play();
+      animate();
+    });
 
 
     function handleTilt(event) {
@@ -290,4 +359,5 @@
     });
   </script>
 </body>
+
 </html>
